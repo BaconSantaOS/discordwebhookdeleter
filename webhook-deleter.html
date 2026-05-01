@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discord Webhook Deleter</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0c0f;
+    --card: #111318;
+    --border: #1e2028;
+    --accent: #5865f2;
+    --accent-dim: rgba(88,101,242,0.15);
+    --accent-border: rgba(88,101,242,0.4);
+    --danger: #e04444;
+    --danger-dim: rgba(224,68,68,0.12);
+    --danger-border: rgba(224,68,68,0.35);
+    --success-dim: rgba(59,165,93,0.1);
+    --success-border: rgba(59,165,93,0.3);
+    --text: #d8dae8;
+    --text-sub: #3a3d4d;
+    --text-muted: #6b7080;
+    --sans: 'Inter', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 420px;
+    animation: up 0.35s cubic-bezier(0.16,1,0.3,1) both;
+  }
+
+  @keyframes up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .header {
+    margin-bottom: 24px;
+  }
+
+  .header h1 {
+    font-size: 21px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+  .header p {
+    margin-top: 5px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+  }
+
+  label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 13px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  input[type="text"]::placeholder { color: var(--text-sub); }
+
+  input[type="text"]:focus {
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  .preview {
+    display: none;
+    margin-top: 8px;
+    padding: 9px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .preview.show { display: block; }
+
+  .preview-row {
+    display: flex;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.9;
+  }
+
+  .preview-row .k { color: #7983f5; min-width: 46px; }
+  .preview-row .v { color: var(--text-muted); word-break: break-all; }
+
+  .sep { height: 1px; background: var(--border); margin: 18px 0; }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s, transform 0.08s;
+    letter-spacing: 0.01em;
+  }
+
+  button:active:not(:disabled) { transform: scale(0.985); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #deleteBtn { background: var(--accent); color: #fff; }
+  #deleteBtn:hover:not(:disabled) { background: #4a56d4; }
+  #deleteBtn.is-danger { background: var(--danger); }
+  #deleteBtn.is-danger:hover:not(:disabled) { background: #c93c3c; }
+
+  .status {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 13px;
+    border-radius: 7px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .status.show { display: block; animation: fadein 0.2s ease; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  .status.success { background: var(--success-dim); border: 1px solid var(--success-border); color: #6ddc96; }
+  .status.error   { background: var(--danger-dim);  border: 1px solid var(--danger-border);  color: #f07070; }
+  .status.info    { background: var(--accent-dim);  border: 1px solid var(--accent-border);  color: #909aff; }
+
+  .status-title { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2px; }
+  .status-body  { opacity: 0.75; }
+
+  .spinner {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .foot {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-sub);
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Webhook Deleter 3000</h1>
+    <p>Paste a Discord webhook URL to permanently delete it.</p>
+  </div>
+
+  <div class="card">
+    <label for="webhookUrl">Webhook</label>
+    <input
+      type="text"
+      id="webhookUrl"
+      placeholder="https://discord.com/api/webhooks/..."
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+    <div class="preview" id="preview">
+      <div class="preview-row"><span class="k">ID</span><span class="v" id="previewId"></span></div>
+      <div class="preview-row"><span class="k">TOKEN</span><span class="v" id="previewToken"></span></div>
+    </div>
+
+    <div class="sep"></div>
+
+    <button id="deleteBtn" onclick="deleteWebhook()">Delete Webhook</button>
+
+    <div class="status" id="status">
+      <div class="status-title" id="statusTitle"></div>
+      <div class="status-body" id="statusBody"></div>
+    </div>
+  </div>
+
+  <div class="foot">WEBHOOK DELETER 3000</div>
+</div>
+
+<script>
+  const input = document.getElementById('webhookUrl');
+  const preview = document.getElementById('preview');
+  const previewId = document.getElementById('previewId');
+  const previewToken = document.getElementById('previewToken');
+  const btn = document.getElementById('deleteBtn');
+  const statusEl = document.getElementById('status');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusBody = document.getElementById('statusBody');
+
+  function parse(url) {
+    const m = url.match(/discord(?:app)?\.com\/api\/webhooks\/(\d+)\/([A-Za-z0-9_\-]+)/);
+    return m ? { id: m[1], token: m[2] } : null;
+  }
+
+  function setStatus(type, title, body) {
+    statusEl.className = 'status show ' + type;
+    statusTitle.textContent = title;
+    statusBody.textContent = body;
+  }
+
+  function clearStatus() { statusEl.className = 'status'; }
+
+  input.addEventListener('input', () => {
+    const p = parse(input.value.trim());
+    clearStatus();
+    if (p) {
+      previewId.textContent = p.id;
+      previewToken.textContent = p.token.slice(0, 18) + '••••';
+      preview.classList.add('show');
+      btn.classList.add('is-danger');
+    } else {
+      preview.classList.remove('show');
+      btn.classList.remove('is-danger');
+    }
+  });
+
+  async function deleteWebhook() {
+    const url = input.value.trim();
+    if (!url) { setStatus('error', 'No URL', 'Paste a Discord webhook URL first.'); return; }
+    const p = parse(url);
+    if (!p) { setStatus('error', 'Invalid URL', 'Must be a valid discord.com/api/webhooks/ URL.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Deleting...';
+    clearStatus();
+
+    try {
+      const res = await fetch(`https://discord.com/api/webhooks/${p.id}/${p.token}`, { method: 'DELETE' });
+      if (res.status === 204) {
+        setStatus('success', 'Deleted', `Webhook ${p.id} was permanently deleted.`);
+        input.value = '';
+        preview.classList.remove('show');
+      } else if (res.status === 404) {
+        setStatus('error', 'Not Found', 'Webhook does not exist or was already deleted.');
+      } else if (res.status === 401) {
+        setStatus('error', 'Unauthorized', 'Invalid token — you cannot delete this webhook.');
+      } else if (res.status === 429) {
+        setStatus('error', 'Rate Limited', 'Too many requests. Wait a moment and try again.');
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setStatus('error', `Error ${res.status}`, d.message || 'Something went wrong.');
+      }
+    } catch {
+      setStatus('error', 'Network Error', 'Could not reach Discord. Check your connection.');
+    }
+
+    btn.disabled = false;
+    btn.classList.remove('is-danger');
+    btn.textContent = 'Delete Webhook';
+  }
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') deleteWebhook(); });
+</script>
+</body>
+</html>
